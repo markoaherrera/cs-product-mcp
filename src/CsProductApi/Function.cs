@@ -62,7 +62,7 @@ public class Function
     private const string JSON_FILE_PATH = "data.json";
     
     /// <summary>
-    /// Lambda function handler for API Gateway requests
+    /// Lambda function handler for returning product information
     /// </summary>
     /// <param name="request">The API Gateway request</param>
     /// <param name="context">The ILambdaContext that provides methods for logging and describing the Lambda environment.</param>
