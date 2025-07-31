@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsProductOrchestrator", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsProductOrchestrator.Tests", "test\CsProductOrchestrator.Tests\CsProductOrchestrator.Tests.csproj", "{56660124-1515-483A-9F6D-9EE0A8E39F8F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProductAgentModels", "src\ProductAgentModels\ProductAgentModels.csproj", "{91A18636-31FD-AA73-916E-79EB794D5FC3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{56660124-1515-483A-9F6D-9EE0A8E39F8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{56660124-1515-483A-9F6D-9EE0A8E39F8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{56660124-1515-483A-9F6D-9EE0A8E39F8F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{91A18636-31FD-AA73-916E-79EB794D5FC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91A18636-31FD-AA73-916E-79EB794D5FC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91A18636-31FD-AA73-916E-79EB794D5FC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91A18636-31FD-AA73-916E-79EB794D5FC3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
