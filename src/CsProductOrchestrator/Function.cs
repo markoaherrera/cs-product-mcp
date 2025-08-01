@@ -5,6 +5,7 @@ using System.Net;
 using ProductAgentModels;
 using DotNetEnv;
 using System.Net.Http.Json;
+using System.Linq.Expressions;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
@@ -36,8 +37,10 @@ public class Function
             context.Logger.LogInformation($"Processing {request.HttpMethod} request for {request.Path}");
 
             var userQuery = JsonSerializer.Deserialize<UserQuery>(request.Body);
+            var lambdaUrl = Environment.GetEnvironmentVariable("PRODUCT_API_URL");
+            var openAiApiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY");
 
-            if (userQuery == null)
+            if (userQuery == null || string.IsNullOrEmpty(userQuery.Query))
             {
                 context.Logger.LogError("Invalid request body");
                 return new APIGatewayProxyResponse
@@ -48,18 +51,42 @@ public class Function
                 };
             }
 
-            var lambdaUrl = Environment.GetEnvironmentVariable("PRODUCT_API_URL");
-            var productData = await http.GetFromJsonAsync<McpStructure>(lambdaUrl);
-
-            var gptRequest = new
+            if (string.IsNullOrEmpty(lambdaUrl))
             {
-                model = "gpt-4o",
+                context.Logger.LogError("Product API URL is not set");
+                return new APIGatewayProxyResponse
+                {
+                    StatusCode = (int)HttpStatusCode.InternalServerError,
+                    Body = JsonSerializer.Serialize(new { error = "Product API URL is not set" }),
+                    Headers = responseHeaders
+                };
+            }
+
+            if (string.IsNullOrEmpty(openAiApiKey))
+            {
+                context.Logger.LogError("OpenAI API key is not set");
+                return new APIGatewayProxyResponse
+                {
+                    StatusCode = (int)HttpStatusCode.InternalServerError,
+                    Body = JsonSerializer.Serialize(new { error = "OpenAI API key is not set" }),
+                    Headers = responseHeaders
+                };
+            }
+
+            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", openAiApiKey);
+
+            // Ask GPT: "What filters do I need for this query?"
+            // Compose the GPT filter extraction request with clear structure and formatting
+            var gptRequestFilter = new
+            {
+                model = "gpt-4.1",
+                response_format = "json",
                 messages = new[]
                 {
                     new
                     {
                         role = "system",
-                        content = "You are a helpful assistant answering questions about product data."
+                        content = "You are an API orchestrator. Extract relevant query parameters from the user's request to filter product data."
                     },
                     new
                     {
@@ -69,13 +96,103 @@ public class Function
                     new
                     {
                         role = "system",
-                        content = $"Here is the product data: {JsonSerializer.Serialize(productData)}"
+                        content =
+                            "Only return a JSON object with fields: maxPrice, color, sort (possible values: 'price-desc' or 'price-asc'), " +
+                            "category (possible values: Road Frames, Mountain Frames, Road Bikes, Mountain Bikes, Helmets, Socks, Caps, Jerseys, " +
+                            "Forks, Head sets, Handle bars, Wheels, Shorts, Tights, Bib-Shorts, Gloves, Vests, Panniers, Locks, Pumps, Lights, " +
+                            "Bottlesand Cages, Tiresand Tubes, Bike Racks, Cleaners, Fenders, Bike Stands, Hydration Packs, Touring Frames, Derailleurs, " +
+                            "Brakes, Saddles, Pedals, Cranksets, Chains, Touring Bikes, Bottom Brackets)."
+                    }
+                }
+            };
+
+            var gptResponseFilter = await http.PostAsJsonAsync("https://api.openai.com/v1/chat/completions", gptRequestFilter);
+
+            if (!gptResponseFilter.IsSuccessStatusCode)
+            {
+                context.Logger.LogError("Failed to extract filters from GPT response");
+            }
+            else
+            {
+                var gptResultFilter = await gptResponseFilter.Content.ReadFromJsonAsync<GptResponse>();
+                var filterContent = gptResultFilter?.Choices?.FirstOrDefault()?.Message?.Content;
+
+                if (string.IsNullOrWhiteSpace(filterContent))
+                {
+                    context.Logger.LogError("No response from GPT for filter extraction");
+                }
+                else
+                {
+                    context.Logger.LogInformation($"Extracted filter content: {filterContent}");
+                    try
+                    {
+                        if (JsonSerializer.Deserialize<Dictionary<string, string>>(filterContent) is { } extractedFilter)
+                        {
+                            // Use TryGetValue for safety and build query string only for present keys
+                            var queryParams = new List<string>();
+                            if (extractedFilter.TryGetValue("color", out var color) && !string.IsNullOrEmpty(color))
+                                queryParams.Add($"color={WebUtility.UrlEncode(color)}");
+                            if (extractedFilter.TryGetValue("category", out var category) && !string.IsNullOrEmpty(category))
+                                queryParams.Add($"category={WebUtility.UrlEncode(category)}");
+                            if (extractedFilter.TryGetValue("sort", out var sort) && !string.IsNullOrEmpty(sort))
+                                queryParams.Add($"sort={WebUtility.UrlEncode(sort)}");
+                            if (extractedFilter.TryGetValue("maxPrice", out var maxPrice) && !string.IsNullOrEmpty(maxPrice))
+                                queryParams.Add($"maxPrice={WebUtility.UrlEncode(maxPrice)}");
+
+                            if (queryParams.Count > 0)
+                                lambdaUrl += "?" + string.Join("&", queryParams);
+                        }
+                        else
+                        {
+                            context.Logger.LogError("Failed to deserialize filter content from GPT response");
+                        }
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        context.Logger.LogError($"JSON deserialization error: {jsonEx.Message}");
+                    }
+                }
+            }
+
+            context.Logger.LogInformation($"Fetching product data from {lambdaUrl}");
+            var productData = await http.GetFromJsonAsync<McpStructure>(lambdaUrl);
+            context.Logger.LogInformation($"Product API response Metadata: {JsonSerializer.Serialize(productData?.Meta)}");
+
+            if (productData == null)
+            {
+                context.Logger.LogError("Failed to fetch product data or data is null");
+                return new APIGatewayProxyResponse
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound,
+                    Body = JsonSerializer.Serialize(new { error = "Product data not found" }),
+                    Headers = responseHeaders
+                };
+            }
+
+            // Ask GPT about the product data
+            var gptRequest = new
+            {
+                model = "gpt-4.1",
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "system",
+                        content = "You are a helpful store assistant answering questions about products from the 'Adventure Works' store."
+                    },
+                    new
+                    {
+                        role = "user",
+                        content = userQuery.Query
+                    },
+                    new
+                    {
+                        role = "system",
+                        content = $"This is the store's product data: {JsonSerializer.Serialize(productData)}"
                     }
                 },
             };
 
-            var openAiApiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY");
-            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", openAiApiKey);
 
             var gptResponse = await http.PostAsJsonAsync("https://api.openai.com/v1/chat/completions", gptRequest);
             if (!gptResponse.IsSuccessStatusCode)
