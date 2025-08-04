@@ -68,9 +68,10 @@ if ($DeployInfrastructure) {
             Write-Host "Infrastructure deployed successfully!" -ForegroundColor Green
             Write-Host "Check the output above for your API Gateway URLs" -ForegroundColor Cyan
             Write-Host ""
-            Write-Host "IMPORTANT: Don't forget to set up environment variables for CsProductOrchestrator!" -ForegroundColor Yellow
-            Write-Host "Use the setup-environment.ps1 script with your OpenAI API key:" -ForegroundColor Yellow
-            Write-Host "  .\setup-environment.ps1 -OpenAiApiKey 'your-openai-key' -ProductApiUrl 'product-api-url-from-output'" -ForegroundColor White
+            Write-Host "IMPORTANT: Don't forget to set up the PRODUCT_API_URL environment variable for CsProductOrchestrator!" -ForegroundColor Yellow
+            Write-Host "Use the setup-environment.ps1 script:" -ForegroundColor Yellow
+            Write-Host "  .\setup-environment.ps1 -ProductApiUrl 'product-api-url-from-output'" -ForegroundColor White
+            Write-Host "Note: OpenAI API key is now provided in the request body, not as an environment variable" -ForegroundColor Cyan
         } else {
             Write-Host "Infrastructure deployment failed!" -ForegroundColor Red
             exit 1

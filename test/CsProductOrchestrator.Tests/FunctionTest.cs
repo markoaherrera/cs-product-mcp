@@ -10,7 +10,7 @@ namespace CsProductOrchestrator.Tests;
 public class FunctionTest
 {
     [Fact]
-    public async Task TestPostRequestWithValidBodyButMissingEnvironmentVariables()
+    public async Task TestPostRequestWithMissingOpenAiApiKey()
     {
         // Arrange
         var function = new Function();
@@ -19,19 +19,19 @@ public class FunctionTest
         {
             HttpMethod = "POST",
             Path = "/api/query",
-            Body = JsonSerializer.Serialize(new { query = "Show me black helmets" })
+            Body = JsonSerializer.Serialize(new { query = "Show me black helmets" }) // Missing openAiApiKey
         };
 
         // Act
         var response = await function.FunctionHandler(request, context);
 
         // Assert
-        // Should return bad request due to invalid request body (null query after deserialization issues)
+        // Should return bad request due to missing OpenAI API key
         Assert.Equal((int)HttpStatusCode.BadRequest, response.StatusCode);
         Assert.NotNull(response.Body);
         
         var errorResponse = JsonSerializer.Deserialize<JsonElement>(response.Body);
-        Assert.Equal("Invalid request body", errorResponse.GetProperty("error").GetString());
+        Assert.Equal("Invalid request body - query and openAiApiKey are required", errorResponse.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class FunctionTest
         {
             HttpMethod = "POST",
             Path = "/api/query",
-            Body = JsonSerializer.Serialize(new { query = "" })
+            Body = JsonSerializer.Serialize(new { query = "", openAiApiKey = "test-key" })
         };
 
         // Act
@@ -80,7 +80,7 @@ public class FunctionTest
         Assert.NotNull(response.Body);
         
         var errorResponse = JsonSerializer.Deserialize<JsonElement>(response.Body);
-        Assert.Equal("Invalid request body", errorResponse.GetProperty("error").GetString());
+        Assert.Equal("Invalid request body - query and openAiApiKey are required", errorResponse.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class FunctionTest
         {
             HttpMethod = "POST",
             Path = "/api/query",
-            Body = JsonSerializer.Serialize(new { query = "test query" })
+            Body = JsonSerializer.Serialize(new { query = "test query", openAiApiKey = "test-key" })
         };
 
         // Act
@@ -104,5 +104,30 @@ public class FunctionTest
         Assert.Equal("*", response.Headers["Access-Control-Allow-Origin"]);
         Assert.True(response.Headers.ContainsKey("Content-Type"));
         Assert.Equal("application/json", response.Headers["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task TestPostRequestWithMissingQuery()
+    {
+        // Arrange
+        var function = new Function();
+        var context = new TestLambdaContext();
+        var request = new APIGatewayProxyRequest
+        {
+            HttpMethod = "POST",
+            Path = "/api/query",
+            Body = JsonSerializer.Serialize(new { openAiApiKey = "test-key" }) // Missing query
+        };
+
+        // Act
+        var response = await function.FunctionHandler(request, context);
+
+        // Assert
+        // Should return bad request due to missing query
+        Assert.Equal((int)HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(response.Body);
+        
+        var errorResponse = JsonSerializer.Deserialize<JsonElement>(response.Body);
+        Assert.Equal("Invalid request body - query and openAiApiKey are required", errorResponse.GetProperty("error").GetString());
     }
 }

@@ -110,15 +110,14 @@ public class Function
 
             var userQuery = JsonSerializer.Deserialize<UserQuery>(request.Body);
             var lambdaUrl = Environment.GetEnvironmentVariable("PRODUCT_API_URL");
-            var openAiApiKey = Environment.GetEnvironmentVariable("OPEN_AI_API_KEY");
 
-            if (userQuery == null || string.IsNullOrEmpty(userQuery.Query))
+            if (userQuery == null || string.IsNullOrEmpty(userQuery.Query) || string.IsNullOrEmpty(userQuery.OpenAiApiKey))
             {
-                context.Logger.LogError("Invalid request body");
+                context.Logger.LogError("Invalid request body - missing query or OpenAI API key");
                 return new APIGatewayProxyResponse
                 {
                     StatusCode = (int)HttpStatusCode.BadRequest,
-                    Body = JsonSerializer.Serialize(new { error = "Invalid request body" }),
+                    Body = JsonSerializer.Serialize(new { error = "Invalid request body - query and openAiApiKey are required" }),
                     Headers = responseHeaders
                 };
             }
@@ -134,18 +133,7 @@ public class Function
                 };
             }
 
-            if (string.IsNullOrEmpty(openAiApiKey))
-            {
-                context.Logger.LogError("OpenAI API key is not set");
-                return new APIGatewayProxyResponse
-                {
-                    StatusCode = (int)HttpStatusCode.InternalServerError,
-                    Body = JsonSerializer.Serialize(new { error = "OpenAI API key is not set" }),
-                    Headers = responseHeaders
-                };
-            }
-
-            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", openAiApiKey);
+            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", userQuery.OpenAiApiKey);
 
             // Ask GPT: "What filters do I need for this query?"
             // Compose the GPT filter extraction request with clear structure and formatting

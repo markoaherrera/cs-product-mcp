@@ -16,12 +16,13 @@ A .NET 8 AWS Lambda solution with API Gateway that provides:
 
 ### CsProductOrchestrator
 - **POST /api/query** - Natural language product queries powered by OpenAI GPT
-- **Request Body:** `{ "query": "Show me black helmets under $50" }`
+- **Request Body:** `{ "query": "Show me black helmets under $50", "openAiApiKey": "your-openai-api-key" }`
 - **Features:**
   - Natural language processing for product queries
   - Automatic filter extraction using GPT
   - Integration with CsProductApi for data retrieval
   - Intelligent responses about product data
+  - Client-provided OpenAI API key for flexibility
 
 ## Response Format
 
@@ -60,18 +61,14 @@ A .NET 8 AWS Lambda solution with API Gateway that provides:
 - AWS CLI configured with appropriate credentials
 - AWS CDK CLI (`npm install -g aws-cdk`)
 - Amazon.Lambda.Tools (`dotnet tool install -g Amazon.Lambda.Tools`)
-- OpenAI API Key (for CsProductOrchestrator)
+- OpenAI API Key (provided in request body for CsProductOrchestrator)
 
 ## Local Development
 
 ### Environment Setup
 
-1. **Set up CsProductOrchestrator environment:**
-   ```cmd
-   cd src\CsProductOrchestrator
-   cp .env.example .env
-   # Edit .env and add your OpenAI API key
-   ```
+1. **CsProductOrchestrator now accepts OpenAI API key in request body** - no environment setup needed for the API key
+2. **Only PRODUCT_API_URL environment variable is required** - this will be set automatically after infrastructure deployment
 
 ### Run locally for testing:
 
@@ -88,10 +85,11 @@ Test endpoints:
 **CsProductOrchestrator:**
 ```cmd
 cd src\CsProductOrchestrator
+# Set PRODUCT_API_URL=http://localhost:5000/api/data in .env file
 dotnet run
 ```
 Test endpoints:
-- `http://localhost:8000/api/orchestrator` (POST with JSON body)
+- `http://localhost:8000/api/orchestrator` (POST with JSON body including openAiApiKey)
 - `http://localhost:8000/health`
 
 ### Run tests:
@@ -151,9 +149,9 @@ cdk deploy
 ```
 
 **3. Configure Environment Variables:**
-After infrastructure deployment, update the CsProductOrchestrator Lambda function environment variables:
+After infrastructure deployment, update the CsProductOrchestrator Lambda function environment variable:
 - `PRODUCT_API_URL`: Use the ProductApiUrlForOrchestrator output from CDK
-- `OPEN_AI_API_KEY`: Your OpenAI API key
+- Note: OpenAI API key is now provided in the request body, not as an environment variable
 
 ## Architecture
 
@@ -206,21 +204,21 @@ curl "https://your-product-api-id.execute-api.region.amazonaws.com/prod/api/data
 ```bash
 curl -X POST "https://your-orchestrator-api-id.execute-api.region.amazonaws.com/prod/api/query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "Show me black helmets under $50"}'
+  -d '{"query": "Show me black helmets under $50", "openAiApiKey": "your-openai-api-key"}'
 ```
 
 **Complex product inquiry:**
 ```bash
 curl -X POST "https://your-orchestrator-api-id.execute-api.region.amazonaws.com/prod/api/query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What are the most expensive road bikes available?"}'
+  -d '{"query": "What are the most expensive road bikes available?", "openAiApiKey": "your-openai-api-key"}'
 ```
 
 **Product comparison:**
 ```bash
 curl -X POST "https://your-orchestrator-api-id.execute-api.region.amazonaws.com/prod/api/query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "Compare mountain bikes and road bikes in terms of price"}'
+  -d '{"query": "Compare mountain bikes and road bikes in terms of price", "openAiApiKey": "your-openai-api-key"}'
 ```
 
 ## Development Notes

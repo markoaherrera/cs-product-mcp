@@ -29,10 +29,14 @@ ProductApiUrlForOrchestrator = https://abc123def.execute-api.us-east-1.amazonaws
 OrchestratorEndpoint = https://xyz789ghi.execute-api.us-east-1.amazonaws.com/prod/api/query
 ```
 
-Run the environment setup script:
-```powershell
-.\setup-environment.ps1 -OpenAiApiKey "your-openai-api-key" -ProductApiUrl "https://abc123def.execute-api.us-east-1.amazonaws.com/prod/api/data"
+Set only the Product API URL (OpenAI API key is now provided in request body):
+```bash
+aws lambda update-function-configuration \
+  --function-name CsProductOrchestrator \
+  --environment "Variables={PRODUCT_API_URL=https://abc123def.execute-api.us-east-1.amazonaws.com/prod/api/data}"
 ```
+
+Or use the AWS Console to set the `PRODUCT_API_URL` environment variable.
 
 ### Step 3: Test Your Deployment
 
@@ -45,7 +49,7 @@ curl "https://abc123def.execute-api.us-east-1.amazonaws.com/prod/api/data?color=
 ```bash
 curl -X POST "https://xyz789ghi.execute-api.us-east-1.amazonaws.com/prod/api/query" \
   -H "Content-Type: application/json" \
-  -d '{"query": "Show me black helmets under $50"}'
+  -d '{"query": "Show me black helmets under $50", "openAiApiKey": "your-openai-api-key"}'
 ```
 
 ## Step-by-Step Deployment
