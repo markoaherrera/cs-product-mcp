@@ -30,6 +30,78 @@ public class Function
             { "Access-Control-Allow-Origin", "*" }
         };
 
+        var filterSchema = @"{
+  ""$schema"": ""https://json-schema.org/draft/2020-12/schema"",
+  ""$id"": ""https://example.com/product-filter.schema.json"",
+  ""title"": ""Product Filter"",
+  ""description"": ""Schema for filtering products with price, color, sort, and category options"",
+  ""type"": ""object"",
+  ""properties"": {
+    ""maxPrice"": {
+      ""type"": ""number"",
+      ""minimum"": 0,
+      ""description"": ""Maximum price filter for products""
+    },
+    ""color"": {
+      ""type"": ""string"",
+      ""description"": ""Color filter for products""
+    },
+    ""sort"": {
+      ""type"": ""string"",
+      ""enum"": [
+        ""price-asc"",
+        ""price-desc""
+      ],
+      ""description"": ""Sort order for products by price""
+    },
+    ""category"": {
+      ""type"": ""string"",
+      ""enum"": [
+        ""Road Frames"",
+        ""Mountain Frames"",
+        ""Road Bikes"",
+        ""Mountain Bikes"",
+        ""Helmets"",
+        ""Socks"",
+        ""Caps"",
+        ""Jerseys"",
+        ""Forks"",
+        ""Head sets"",
+        ""Handle bars"",
+        ""Wheels"",
+        ""Shorts"",
+        ""Tights"",
+        ""Bib-Shorts"",
+        ""Gloves"",
+        ""Vests"",
+        ""Panniers"",
+        ""Locks"",
+        ""Pumps"",
+        ""Lights"",
+        ""Bottlesand Cages"",
+        ""Tiresand Tubes"",
+        ""Bike Racks"",
+        ""Cleaners"",
+        ""Fenders"",
+        ""Bike Stands"",
+        ""Hydration Packs"",
+        ""Touring Frames"",
+        ""Derailleurs"",
+        ""Brakes"",
+        ""Saddles"",
+        ""Pedals"",
+        ""Cranksets"",
+        ""Chains"",
+        ""Touring Bikes"",
+        ""Bottom Brackets""
+      ],
+      ""description"": ""Product category filter""
+    }
+  },
+  ""required"": [],
+  ""additionalProperties"": false
+}";
+
         try
         {
             Env.Load(); // TODO: consider using a more secure way to manage environment variables
@@ -79,8 +151,7 @@ public class Function
             // Compose the GPT filter extraction request with clear structure and formatting
             var gptRequestFilter = new
             {
-                model = "gpt-4.1",
-                response_format = "json",
+                model = "gpt-4o-2024-08-06",
                 messages = new[]
                 {
                     new
@@ -93,16 +164,21 @@ public class Function
                         role = "user",
                         content = userQuery.Query
                     },
+                    // new
+                    // {
+                    //     role = "system",
+                    //     content =
+                    //         "Only return a JSON object with fields: maxPrice, color, sort (possible values: 'price-desc' or 'price-asc'), " +
+                    //         "category (possible values: Road Frames, Mountain Frames, Road Bikes, Mountain Bikes, Helmets, Socks, Caps, Jerseys, " +
+                    //         "Forks, Head sets, Handle bars, Wheels, Shorts, Tights, Bib-Shorts, Gloves, Vests, Panniers, Locks, Pumps, Lights, " +
+                    //         "Bottlesand Cages, Tiresand Tubes, Bike Racks, Cleaners, Fenders, Bike Stands, Hydration Packs, Touring Frames, Derailleurs, " +
+                    //         "Brakes, Saddles, Pedals, Cranksets, Chains, Touring Bikes, Bottom Brackets)."
+                    // }
                     new
                     {
                         role = "system",
-                        content =
-                            "Only return a JSON object with fields: maxPrice, color, sort (possible values: 'price-desc' or 'price-asc'), " +
-                            "category (possible values: Road Frames, Mountain Frames, Road Bikes, Mountain Bikes, Helmets, Socks, Caps, Jerseys, " +
-                            "Forks, Head sets, Handle bars, Wheels, Shorts, Tights, Bib-Shorts, Gloves, Vests, Panniers, Locks, Pumps, Lights, " +
-                            "Bottlesand Cages, Tiresand Tubes, Bike Racks, Cleaners, Fenders, Bike Stands, Hydration Packs, Touring Frames, Derailleurs, " +
-                            "Brakes, Saddles, Pedals, Cranksets, Chains, Touring Bikes, Bottom Brackets)."
-                    }
+                        content = $"Only and only return a JSON object without using markdown formatters just the text containing a JSON document, using the following JSON schema as a guide:\n{filterSchema}"
+                    },
                 }
             };
 
@@ -111,6 +187,7 @@ public class Function
             if (!gptResponseFilter.IsSuccessStatusCode)
             {
                 context.Logger.LogError("Failed to extract filters from GPT response");
+                context.Logger.Log($"Gpt response: {gptResponseFilter.StatusCode} - {await gptResponseFilter.Content.ReadAsStringAsync()}");
             }
             else
             {
